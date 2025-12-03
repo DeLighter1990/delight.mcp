@@ -1,0 +1,30 @@
+{
+  "name": "delight/mcp",
+  "description": "Packages for Bitrix MCP server",
+  "license": "proprietary",
+  "authors": [
+    {
+      "name": "Dmitriy Krotov"
+    }
+  ],
+  "require": {
+    "php": ">=8.1",
+    "bitrix-tools/framework-docs": "dev-main"
+  },
+  "repositories": [
+    {
+      "type": "package",
+      "package": {
+        "name": "bitrix-tools/framework-docs",
+        "version": "dev-main",
+        "source": {
+          "url": "https://github.com/bitrix-tools/framework-docs.git",
+          "type": "git",
+          "reference": "main"
+        }
+      }
+    }
+  ],
+  "minimum-stability": "dev",
+  "prefer-stable": true
+}

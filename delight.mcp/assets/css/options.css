@@ -1,0 +1,30 @@
+.delight-progressbar-container {
+    margin-top: 20px;
+    margin-bottom: 40px;
+}
+
+ .ui-day-picker-day[data-text-color="#e3e3e3"] {
+     cursor: default;
+ }
+
+.ui-day-picker-day[data-text-color="#e3e3e3"].--focused .ui-day-picker-day-inner::after {
+    display: none !important;
+}
+
+.required-star {
+    color: red;
+}
+
+.delight-mcp-tokens-table-wrapper {
+    margin-bottom: 30px;
+}
+
+.delight-mcp-grants-list {
+    white-space: nowrap;
+    padding-left: 20px;
+    margin: 0;
+}
+
+#delight_mcp_settings .ui-form-section > .ui-form-row > .ui-form-label {
+    width: 320px;
+}

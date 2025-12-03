@@ -1,0 +1,19 @@
+{
+    "packages": [
+        {
+            "name": "bitrix-tools/framework-docs",
+            "version": "dev-main",
+            "version_normalized": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/bitrix-tools/framework-docs.git",
+                "reference": "main"
+            },
+            "type": "library",
+            "installation-source": "source",
+            "install-path": "../bitrix-tools/framework-docs"
+        }
+    ],
+    "dev": true,
+    "dev-package-names": []
+}
