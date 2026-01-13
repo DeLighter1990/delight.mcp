@@ -13,11 +13,11 @@ class Main
     /**
      * Выводит уведомление после установки обновлений Битрикса
      *
-     * @param string $moduleId Идентификатор обновленного модуля
+     * @param mixed $moduleId Идентификатор обновленного модуля. Может приходить как строка, так и массив
      * @return void
      * @throws ArgumentOutOfRangeException
      */
-    public static function onModuleUpdateHandler(string $moduleId): void
+    public static function onModuleUpdateHandler(mixed $moduleId): void
     {
         if ($moduleId === 'main') {
             \CAdminNotify::Add(array(
