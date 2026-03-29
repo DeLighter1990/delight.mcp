@@ -106,6 +106,13 @@ class delight_mcp extends CModule
 
     public function UnInstallEvents()
     {
+        EventManager::getInstance()->unRegisterEventHandler(
+            'main',
+            'OnModuleUpdate',
+            $this->MODULE_ID,
+            Delight\Mcp\EventHandlers\Main::class,
+            'onModuleUpdateHandler'
+        );
     }
 
     public function UnInstallDB()
