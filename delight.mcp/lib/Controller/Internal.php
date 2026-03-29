@@ -17,6 +17,7 @@ use Delight\Mcp\Helpers\Utils;
 use Delight\Mcp\Services\LiveApiService;
 use Delight\Mcp\Services\TokenService;
 use Delight\Mcp\Tests\ExternalApiTest;
+use Delight\Mcp\Tests\OAuthTest;
 
 /**
  * Внутренний контроллер, предназначен для вызовов обработчиков внутри модуля (из админки)
@@ -137,9 +138,25 @@ class Internal extends Controller
      *
      * @param string $token Токен
      * @return TestResultDto
+     * @throws ArgumentException
+     * @throws \JsonException
      */
     public function testExternalApiAction(string $token): TestResultDto
     {
         return (new ExternalApiTest($token))->run();
+    }
+
+    /**
+     * Запускает тестирование OAuth
+     * /bitrix/services/main/ajax.php?action=delight:mcp.Internal.testOAuthAction
+     *
+     * @param string $clientId Идентификатор клиента. Совпадает с идентификатором токена.
+     * @param string $clientSecret Секретный ключ клиента. Совпадает с токеном.
+     * @return TestResultDto
+     * @throws ArgumentException
+     */
+    public function testOAuthAction(string $clientId, string $clientSecret): TestResultDto
+    {
+        return (new OAuthTest($clientId, $clientSecret))->run();
     }
 }

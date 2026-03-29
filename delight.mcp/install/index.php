@@ -83,9 +83,11 @@ class delight_mcp extends CModule
 
         // Генерируем секретный ключ для токенов
         Option::set($this->MODULE_ID, 'jwt_secret_key', Random::getString(32));
+
+        Option::set($this->MODULE_ID, 'well_known_interception_enabled', 'Y');
     }
 
-    public function InstallEvents()
+    public function InstallEvents(): void
     {
         EventManager::getInstance()->registerEventHandler(
             'main',
@@ -93,6 +95,14 @@ class delight_mcp extends CModule
             $this->MODULE_ID,
             Delight\Mcp\EventHandlers\Main::class,
             'onModuleUpdateHandler'
+        );
+
+        EventManager::getInstance()->registerEventHandler(
+            'main',
+            'onPageStart',
+            $this->MODULE_ID,
+            Delight\Mcp\EventHandlers\Main::class,
+            'onPageStartHandler'
         );
     }
 

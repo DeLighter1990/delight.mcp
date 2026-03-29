@@ -2,6 +2,8 @@
 
 namespace Delight\Mcp\Helpers;
 
+use Bitrix\Main\Application;
+
 class Utils
 {
     /**
@@ -54,5 +56,18 @@ class Utils
     {
         $timestamp = filemtime($filePath); // время последнего изменения
         return date('c', $timestamp);
+    }
+
+    /**
+     * Возвращает базовый URL - протокол + домен
+     *
+     * @return string
+     */
+    public static function getBaseUrl(): string
+    {
+        $request = Application::getInstance()->getContext()->getRequest();
+        $scheme = $request->isHttps() ? 'https' : 'http';
+
+        return $scheme . '://' . $request->getHttpHost();
     }
 }

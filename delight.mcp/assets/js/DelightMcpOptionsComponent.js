@@ -4,6 +4,7 @@ class DelightMcpOptionsComponent {
     this.reindexLiveApiButton = document.querySelector('.js-reindex-live_api');
     this.createTokenButton = document.querySelector('.js-create-token');
     this.testExternalApiButton = document.querySelector('.js-test-external-api');
+    this.testOAuthButton = document.querySelector('.js-test-oauth');
     this.saveButton = document.querySelector('.js-btn-save');
     this.testResultsContainer = document.querySelector('.js-test-results-container');
     this.totalFilesToProcess = 0;
@@ -26,6 +27,9 @@ class DelightMcpOptionsComponent {
     }
     if (this.testExternalApiButton) {
       this.testExternalApiButton.addEventListener('click', this.handleTestExternalApiClick.bind(this));
+    }
+    if (this.testOAuthButton) {
+      this.testOAuthButton.addEventListener('click', this.handleTestOAuthClick.bind(this));
     }
     if (this.saveButton) {
       this.saveButton.addEventListener('click', this.handleSaveClick.bind(this));
@@ -346,8 +350,8 @@ class DelightMcpOptionsComponent {
     event.preventDefault();
 
     if (!this.testResultsContainer) {
-        console.error('Test results container not found!');
-        return;
+      console.error('Test results container not found!');
+      return;
     }
 
     const token = prompt('Введите токен для тестирования API');
@@ -358,7 +362,6 @@ class DelightMcpOptionsComponent {
     this.testExternalApiButton.disabled = true;
     this.testResultsContainer.innerHTML = '<div class="ui-alert ui-alert-info"><span class="ui-alert-message">Запускаем тесты...</span></div>';
 
-
     try {
       const response = await BX.ajax.runAction('delight:mcp.Internal.testExternalApi', {
         data: {
@@ -366,75 +369,120 @@ class DelightMcpOptionsComponent {
         }
       });
 
-      if (response.status === 'success') {
-        const { summary, details, error } = response.data;
-        let resultHtml = '';
+      this.displayTestResults(response);
 
-        if (error) {
-          resultHtml = `<div class="ui-alert ui-alert-danger"><span class="ui-alert-message"><strong>Ошибка:</strong> ${error}</span></div>`;
-        } else {
-          resultHtml = `
-            <div class="ui-alert ui-alert-default">
-                <span class="ui-alert-message">
-                    <strong>Результаты тестирования:</strong><br>
-                    Всего тестов: ${summary.total}<br>
-                    Прошло: <span style="color: green;">${summary.passed}</span><br>
-                    Провалилось: <span style="color: red;">${summary.failed}</span>
-                </span>
-            </div>
-          `;
-
-          if (details.length > 0) {
-            resultHtml += '<h4>Детали:</h4>';
-            details.forEach(item => {
-              const detailsList = item.details && item.details.length > 0
-                ? `<ul><li>${item.details.join('</li><li>')}</li></ul>`
-                : 'Нет подробностей.';
-
-              const statusColor = item.status === 'PASS' ? 'green' : 'red';
-
-              let debugInfo = '';
-              if (item.status === 'FAIL') {
-                  if (item.schema) {
-                      debugInfo += `
-                        <strong>Ожидаемая схема:</strong>
-                        <pre><code>${JSON.stringify(item.schema, null, 2)}</code></pre>
-                      `;
-                  }
-                  if (item.response) {
-                      debugInfo += `
-                        <strong>Фактический ответ:</strong>
-                        <pre><code>${JSON.stringify(item.response, null, 2)}</code></pre>
-                      `;
-                  }
-              }
-
-              resultHtml += `
-                <div class="ui-alert">
-                    <span class="ui-alert-message">
-                        <strong>Тест:</strong> ${item.name}<br>
-                        <strong>Статус:</strong> <span style="color: ${statusColor};">${item.status}</span><br>
-                        <strong>Сообщение:</strong> ${item.message}<br>
-                        <strong>Подробности валидации:</strong>
-                        ${detailsList}
-                        ${debugInfo}
-                    </span>
-                </div>
-              `;
-            });
-          }
-        }
-        this.testResultsContainer.innerHTML = resultHtml;
-      } else {
-        const errorMessage = response.errors && response.errors.length > 0 ? response.errors.map(e => e.message).join('\n') : 'Произошла неизвестная ошибка.';
-        this.testResultsContainer.innerHTML = `<div class="ui-alert ui-alert-danger"><span class="ui-alert-message"><strong>Ошибка при запуске тестов:</strong> ${errorMessage}</span></div>`;
-      }
     } catch (error) {
       console.error('Error running external API tests:', error);
       const errorMessage = error.errors && error.errors.length > 0 ? error.errors.map(e => e.message).join('\n') : 'Произошла неизвестная ошибка.';
       this.testResultsContainer.innerHTML = `<div class="ui-alert ui-alert-danger"><span class="ui-alert-message"><strong>Произошла ошибка при запуске тестов:</strong> ${errorMessage}</span></div>`;
     } finally {
       this.testExternalApiButton.disabled = false;
+    }
+  }
+
+  async handleTestOAuthClick(event) {
+    event.preventDefault();
+
+    if (!this.testResultsContainer) {
+      console.error('Test results container not found!');
+      return;
+    }
+
+    const clientId = prompt('Введите clientId (совпадает с идентификатором токена)');
+    if (!clientId) {
+      return;
+    }
+
+    const clientSecret = prompt('Введите clientSecret (совпадает с токеном)');
+    if (!clientSecret) {
+      return;
+    }
+
+    this.testOAuthButton.disabled = true;
+    this.testResultsContainer.innerHTML = '<div class="ui-alert ui-alert-info"><span class="ui-alert-message">Запускаем тесты...</span></div>';
+
+    try {
+      const response = await BX.ajax.runAction('delight:mcp.Internal.testOAuth', {
+        data: {
+          clientId: clientId,
+          clientSecret: clientSecret
+        }
+      });
+
+      this.displayTestResults(response);
+
+    } catch (error) {
+      console.error('Error running OAuth tests:', error);
+      const errorMessage = error.errors && error.errors.length > 0 ? error.errors.map(e => e.message).join('\n') : 'Произошла неизвестная ошибка.';
+      this.testResultsContainer.innerHTML = `<div class="ui-alert ui-alert-danger"><span class="ui-alert-message"><strong>Произошла ошибка при запуске тестов:</strong> ${errorMessage}</span></div>`;
+    } finally {
+      this.testOAuthButton.disabled = false;
+    }
+  }
+
+  displayTestResults(response) {
+    if (response.status === 'success') {
+      const { summary, details, error } = response.data;
+      let resultHtml = '';
+
+      if (error) {
+        resultHtml = `<div class="ui-alert ui-alert-danger"><span class="ui-alert-message"><strong>Ошибка:</strong> ${error}</span></div>`;
+      } else {
+        resultHtml = `
+          <div class="ui-alert ui-alert-default">
+              <span class="ui-alert-message">
+                  <strong>Результаты тестирования:</strong><br>
+                  Всего тестов: ${summary.total}<br>
+                  Прошло: <span style="color: green;">${summary.passed}</span><br>
+                  Провалилось: <span style="color: red;">${summary.failed}</span>
+              </span>
+          </div>
+        `;
+
+        if (details.length > 0) {
+          resultHtml += '<h4>Детали:</h4>';
+          details.forEach(item => {
+            const detailsList = item.details && item.details.length > 0
+              ? `<ul><li>${item.details.join('</li><li>')}</li></ul>`
+              : 'Нет подробностей.';
+
+            const statusColor = item.status === 'PASS' ? 'green' : 'red';
+
+            let debugInfo = '';
+            if (item.status === 'FAIL') {
+                if (item.schema) {
+                    debugInfo += `
+                      <strong>Ожидаемая схема:</strong>
+                      <pre><code>${JSON.stringify(item.schema, null, 2)}</code></pre>
+                    `;
+                }
+                if (item.response) {
+                    debugInfo += `
+                      <strong>Фактический ответ:</strong>
+                      <pre><code>${JSON.stringify(item.response, null, 2)}</code></pre>
+                    `;
+                }
+            }
+
+            resultHtml += `
+              <div class="ui-alert">
+                  <span class="ui-alert-message">
+                      <strong>Тест:</strong> ${item.name}<br>
+                      <strong>Статус:</strong> <span style="color: ${statusColor};">${item.status}</span><br>
+                      <strong>Сообщение:</strong> ${item.message}<br>
+                      <strong>Подробности валидации:</strong>
+                      ${detailsList}
+                      ${debugInfo}
+                  </span>
+              </div>
+            `;
+          });
+        }
+      }
+      this.testResultsContainer.innerHTML = resultHtml;
+    } else {
+      const errorMessage = response.errors && response.errors.length > 0 ? response.errors.map(e => e.message).join('\n') : 'Произошла неизвестная ошибка.';
+      this.testResultsContainer.innerHTML = `<div class="ui-alert ui-alert-danger"><span class="ui-alert-message"><strong>Ошибка при запуске тестов:</strong> ${errorMessage}</span></div>`;
     }
   }
 

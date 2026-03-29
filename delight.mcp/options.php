@@ -23,6 +23,7 @@ if ($moduleRights >= 'R') {
     $request = Application::getInstance()->getContext()->getRequest();
     $godMode = $request->get('GOD_MODE') === 'Y';
     $isEmbeddingsAvailable = (new EmbeddingService())->isAvailable();
+    $actionUrl = $APPLICATION->GetCurPage() . '?mid=' . urlencode($moduleId) . '&amp;lang=' .LANGUAGE_ID . ($godMode ? '&amp;GOD_MODE=Y' : '');
 
     $liveApiIndexedModulesStat = Json::decode(Option::get($moduleId, 'live_api_indexed_modules_stat', '[]'));
 
@@ -43,6 +44,12 @@ if ($moduleRights >= 'R') {
     }
 
     $needToReindexModules = Option::get($moduleId, 'need_to_reindex_modules', 'N') === 'Y';
+
+    $aTabs = [
+        ['DIV' => 'settings', 'TAB' => 'Настройки', 'TITLE' => 'Настройки'],
+        ['DIV' => 'tokens', 'TAB' => 'Токены', 'TITLE' => 'Токены'],
+        ['DIV' => 'rights', 'TAB' => 'Доступ', 'TITLE' => 'Доступ'],
+    ];
 
     $fields = [
         'nextTab',
@@ -78,16 +85,26 @@ if ($moduleRights >= 'R') {
             'class' => 'ui-alert-default ui-alert-icon-info'
         ] : '',
         'nextTab',
-        'nextTab',
-        /*
-         * Редактирование секретного ключа
-         * [
+        'nextTab'
+    ];
+
+    if ($godMode) {
+        $aTabs[] = ['DIV' => 'expert', 'TAB' => 'Экспертные настройки', 'TITLE' => 'Экспертные настройки'];
+        $fields[] = 'nextTab';
+        $fields[] = [
+            'name' => 'well_known_interception_enabled',
+            'title' => 'Включить перехват для .well-known',
+            'type' => 'checkbox',
+            'hint' => 'Перехватывает обработку запросов к /bitrix/services/main/ajax.php/.well-known/oauth-authorization-server 
+            и /bitrix/services/main/ajax.php/.well-known/openid-configuration. Используется для интеграции с ChatGPT.'
+        ];
+        $fields[] = [
             'name' => 'jwt_secret_key',
             'title' => 'Секретный ключ',
             'type' => 'password',
-            'hint' => 'Используется для генерации JWT-токена. Не может быть пустым. При изменении секретного ключа существующие токены перестанут работать.
-        ],*/
-    ];
+            'hint' => 'Используется для генерации JWT-токена. Не может быть пустым. При изменении секретного ключа существующие токены перестанут работать.',
+        ];
+    }
 
     // Сохранение настроек
     if ($moduleRights === 'W' && $request->isPost() && check_bitrix_sessid()) {
@@ -108,12 +125,6 @@ if ($moduleRights >= 'R') {
         ob_end_clean();
         CAdminMessage::ShowNote('Настройки сохранены');
     }
-
-    $aTabs = [
-        ['DIV' => 'settings', 'TAB' => 'Настройки', 'TITLE' => 'Настройки'],
-        ['DIV' => 'tokens', 'TAB' => 'Токены', 'TITLE' => 'Токены'],
-        ['DIV' => 'rights', 'TAB' => 'Доступ', 'TITLE' => 'Доступ'],
-    ];
 
     $tabControl = new CAdminTabControl('tabControl', $aTabs);
 
@@ -214,7 +225,7 @@ if ($moduleRights >= 'R') {
                 if ($aTabs[$tabControl->tabIndex - 1]['DIV'] === 'settings') {
                 ?>
                 <form method="post" name="delight_mcp_settings" id="delight_mcp_settings"
-                      action="<?= $APPLICATION->GetCurPage() ?>?mid=<?= urlencode($moduleId) ?>&amp;lang=<?= LANGUAGE_ID ?>">
+                      action="<?= $actionUrl?>">
                     <?= bitrix_sessid_post(); ?>
                     <?php } ?>
                     <div class="ui-form ui-form-section ui-form-line no-border"><?php
@@ -406,9 +417,14 @@ if ($moduleRights >= 'R') {
                                 <div class="ui-form-content">
                                     <div class="ui-form-row">
                                         <label class="ui-ctl ui-ctl-text">
-                                            <input type="password" name="<?= $field['name'] ?>"
-                                                   value=""
-                                                   placeholder="••••••••••••" class="ui-ctl-element">
+                                            <input
+                                                type="password"
+                                                name="<?= $field['name'] ?>"
+                                                value=""
+                                                placeholder="••••••••••••"
+                                                autocomplete="new-password"
+                                                class="ui-ctl-element"
+                                            >
                                         </label>
                                     </div>
                                 </div>
@@ -427,6 +443,7 @@ if ($moduleRights >= 'R') {
             <?php
             if ($godMode) { ?>
                 <button class="ui-btn ui-btn-light-border js-test-external-api">Тест внешнего API</button>
+                <button class="ui-btn ui-btn-light-border js-test-oauth">Тест OAuth</button>
             <?php }
         }
         $tabControl->End(); ?>
@@ -455,6 +472,18 @@ if ($moduleRights >= 'R') {
                 input.setAttribute('form', 'delight_mcp_settings');
             });
             const selects = rightsTableWrapper.querySelectorAll('select');
+            selects.forEach(function (select) {
+                select.setAttribute('form', 'delight_mcp_settings');
+            });
+        }
+        // Для связи полей с экспертными настройками с основной формой
+        const expertTableWrapper = document.getElementById('expert');
+        if (expertTableWrapper) {
+            const inputs = expertTableWrapper.querySelectorAll('input');
+            inputs.forEach(function (input) {
+                input.setAttribute('form', 'delight_mcp_settings');
+            });
+            const selects = expertTableWrapper.querySelectorAll('select');
             selects.forEach(function (select) {
                 select.setAttribute('form', 'delight_mcp_settings');
             });
