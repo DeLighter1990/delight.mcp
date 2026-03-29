@@ -81,6 +81,16 @@ class Rpc extends Controller
                         'resources' => new \stdClass(),
                     ]
                 ];
+            case 'notifications/initialized':
+                /**
+                 * @see https://github.com/DeLighter1990/delight.mcp/issues/1
+                 *
+                 * На этот запрос сервер не должен отвечать.
+                 * Он служит для уведомления сервера клиентом о готовности работы.
+                 * На других MCP он может быть использован для инициализации внутренних ресурсов/сервисов,
+                 * в нашем случае он не используется, но должен быть обработан без ошибок и без ответа.
+                 */
+                exit;
             case 'tools/list':
                 $toolsService = new ToolsService();
                 return [
@@ -199,7 +209,9 @@ class Rpc extends Controller
         }
 
         $token = TokenService::extractTokenFromHeader();
-        $tokenIdentifier = (new TokenService())->getTokenIdentifier($token);
-        (new LoggerService($tokenIdentifier))->log('Out', $finalResponse);
+        if($token !== null) {
+            $tokenIdentifier = (new TokenService())->getTokenIdentifier($token);
+            (new LoggerService($tokenIdentifier))->log('Out', $finalResponse);
+        }
     }
 }
