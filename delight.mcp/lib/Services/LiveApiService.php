@@ -38,6 +38,9 @@ class LiveApiService
         '/local/modules',
     ];
 
+    /** @var int Размер чанка для одной пакетной вставки данных в таблицы LiveApi */
+    private const CHUNK_SIZE_ON_INSERT_DATA = 500;
+
     /**
      * Переиндексирует установленные модули из /bitrix/modules и /local/modules.
      *
@@ -56,10 +59,13 @@ class LiveApiService
         $totalModules = count($modules);
         $modulesToProcess = ($limit > 0) ? array_slice($modules, $start, $limit) : $modules;
 
+        $functionsBatch = [];
+        $eventsBatch = [];
+
         foreach ($modulesToProcess as $module) {
             $moduleId = $module['id'];
             $modulePath = $module['path'];
-            $version = $module['version'];
+            $version = $module['version'] ?? '';
 
             $ar = $this->scanModuleDirectory($modulePath);
             foreach ($ar as $type => $arList) {
@@ -71,21 +77,22 @@ class LiveApiService
                         'DATA' => Json::encode($location),
                     ];
 
-                    switch ($type) {
-                        case LiveApiTypes::FUNCTION->value:
-                            DelightMcpLiveApiFunctionsTable::add($data);
-                            break;
-                        case LiveApiTypes::EVENT->value:
-                            DelightMcpLiveApiEventsTable::add($data);
-                            break;
+                    if ($type === LiveApiTypes::FUNCTION->value) {
+                        $functionsBatch[] = $data;
+                    } elseif ($type === LiveApiTypes::EVENT->value) {
+                        $eventsBatch[] = $data;
                     }
                 }
             }
         }
 
+        DelightMcpLiveApiFunctionsTable::bulkInsert($functionsBatch, self::CHUNK_SIZE_ON_INSERT_DATA, true);
+        DelightMcpLiveApiEventsTable::bulkInsert($eventsBatch, self::CHUNK_SIZE_ON_INSERT_DATA, true);
+
         if (($start + $limit) >= $totalModules) {
             Option::set('delight.mcp', 'live_api_indexed_modules_stat', Json::encode(['MODULES_CNT' => $totalModules, 'DATETIME' => date('d.m.Y H:i:s'), 'TO' => count($modulesToProcess)]));
             Option::set('delight.mcp', 'need_to_reindex_modules', 'N');
+            \CAdminNotify::DeleteByTag('delight_mcp_updates');
         }
 
         return new ProgressBarValues(
@@ -841,3 +848,4 @@ class LiveApiService
         return $result;
     }
 }
+

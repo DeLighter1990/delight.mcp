@@ -75,8 +75,11 @@
 
 **Токены с правами на исполнение PHP/Shell/SQL кода рекомендуется использовать только на тестовых площадках! Помните, что AI-агенты ошибаются и могут удалить или испортить ваши данные.**
 
-## 🔌 Пример подключения MCP сервера в Cursor
-Файл mcp.json:
+## 🔌 Примеры подключения MCP сервера
+<details>
+<summary>Cursor</summary>
+
+Файл `mcp.json`:
 ```
 {
   "mcpServers": {
@@ -92,6 +95,45 @@
   }
 }
 ```
+</details>
+
+<details>
+<summary>JetBrains IDE (AI Assistant)</summary>
+
+![PhpStorm](delight.mcp/assets/img/php-storm.png)
+
+Файл проекта `/.ai/mcp/mcp.json`:
+```
+{
+  "mcpServers": {
+    "bitrix": {
+      "command": "npx.cmd",
+      "args": [
+        "mcp-remote",
+        "https://{ВАШ_ДОМЕН}/bitrix/services/main/ajax.php?action=delight:mcp.Rpc.handler",
+        "--header",
+        "Authorization: Bearer {ВАШ_ТОКЕН}"
+      ]
+    }
+  }
+}
+```
+</details>
+
+### Особенности указания команды `npx`
+
+Значение поля `command` может зависеть от операционной системы и окружения. Примеры:
+
+```json
+"command": "npx"
+```
+```json
+"command": "npx.cmd"
+```
+```json
+"command": "C:\\Program Files\\nodejs\\npx.cmd"
+```
+Если возникает ошибка запуска, укажите полный путь до `npx`.
 
 ## 🧠 Подключение embeddings-сервиса
 

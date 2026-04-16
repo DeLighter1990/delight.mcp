@@ -5,12 +5,15 @@ namespace Delight\Mcp\Entity;
 use Bitrix\Main\SystemException;
 use Bitrix\Main\ORM\Fields;
 use Bitrix\Main\Entity;
+use Delight\Mcp\Traits\BulkInsertTrait;
 
 /**
  * Таблица для хранения информации о событиях модулей (Live API)
  */
 class DelightMcpLiveApiEventsTable extends Entity\DataManager
 {
+    use BulkInsertTrait;
+
     /**
      * Возвращает имя таблицы
      *
