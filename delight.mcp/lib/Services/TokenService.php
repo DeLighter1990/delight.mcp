@@ -125,7 +125,14 @@ class TokenService
     }
 
     /**
-     * Достаёт токен из заголовка
+     * Достаёт токен из заголовка или query/POST-параметра.
+     *
+     * Помимо стандартного Authorization-заголовка читает также:
+     * - кастомный X-Authorization (на случай, когда фронтенд режет
+     *   Authorization до прихода в PHP — типичная ситуация для nginx
+     *   перед Apache/PHP-FPM, в т.ч. в ISPmanager-сборках);
+     * - query/POST-параметры access_token и token (последний резерв,
+     *   когда заголовки нельзя добавить в принципе).
      *
      * @return string|null Токен
      */
@@ -154,8 +161,37 @@ class TokenService
             $header = $request->getServer()->get('REDIRECT_HTTP_AUTHORIZATION');
         }
 
+        // 4. Фолбэк на кастомный заголовок X-Authorization. Многие
+        // фронтенды (nginx-проксинг к Apache/PHP-FPM, ряд CDN, ISPmanager
+        // по умолчанию) не пробрасывают стандартный Authorization, тогда
+        // как кастомные X-* заголовки доходят до PHP без настройки сервера.
+        if (!$header) {
+            $header = $request->getHeader('X-Authorization');
+        }
+        if (!$header && function_exists('apache_request_headers')) {
+            $allHeaders = apache_request_headers();
+            foreach ($allHeaders as $name => $value) {
+                if (strcasecmp($name, 'X-Authorization') === 0) {
+                    $header = $value;
+                    break;
+                }
+            }
+        }
+
         if ($header && preg_match('/^Bearer\s+(.*?)$/i', $header, $matches)) {
             return $matches[1];
+        }
+
+        // 5. Последний резерв: токен в query/POST-параметре. Полезно,
+        // когда заголовки нельзя добавить в принципе (например, при
+        // отладке прямо из браузера или из клиентов, не позволяющих
+        // настраивать заголовки запроса).
+        $tokenParam = $request->get('access_token');
+        if (!$tokenParam) {
+            $tokenParam = $request->get('token');
+        }
+        if (is_string($tokenParam) && $tokenParam !== '') {
+            return $tokenParam;
         }
 
         return null;
