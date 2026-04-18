@@ -129,11 +129,10 @@ class DelightMcpOptionsComponent {
       });
 
       if (response.status === 'success') {
-        prompt(
-            'Токен успешно создан. Скопируйте его в надёжное место, он больше не будет показан.',
-            response.data
-        );
-        this.reloadPage('tokens');
+        // GARMIN: вместо нативного prompt() (который Chrome блокирует, если юзер
+        // ранее нажал «Не показывать больше диалоги») открываем модалку с textarea
+        // и кнопкой «Копировать» — так токен реально видно и можно скопировать.
+        this.showTokenPopup(response.data);
       } else {
         const errorMessage = response.errors && response.errors.length > 0 ? response.errors.map(e => e.message).join('\n') : 'Произошла неизвестная ошибка.';
         alert(`Ошибка при создании токена: ${errorMessage}`);
@@ -443,6 +442,90 @@ class DelightMcpOptionsComponent {
     if (progressBarContainer) {
       progressBarContainer.remove();
     }
+  }
+
+  /**
+   * GARMIN: модалка для показа только что выпущенного JWT-токена.
+   * Заменяет нативный prompt(), который не работает в современных браузерах после
+   * того как пользователь закрыл диалог чекбоксом «не показывать больше».
+   */
+  showTokenPopup(token) {
+    const tokenStr = String(token == null ? '' : token);
+    const safe = tokenStr
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    const content = document.createElement('div');
+    content.style.padding = '16px';
+    content.style.maxWidth = '640px';
+    content.innerHTML =
+        '<p style="margin:0 0 12px 0;font-size:14px;line-height:1.4;">' +
+        'Токен успешно создан. Скопируйте его в надёжное место — ' +
+        '<strong>он больше не будет показан</strong>.' +
+        '</p>' +
+        '<textarea readonly style="width:100%;min-height:120px;font-family:monospace;' +
+        'font-size:12px;padding:8px;box-sizing:border-box;border:1px solid #c8cdd3;' +
+        'border-radius:3px;resize:vertical;word-break:break-all;">' + safe + '</textarea>' +
+        '<div class="js-delight-mcp-copy-status" style="margin-top:8px;font-size:12px;color:#1a8839;height:16px;"></div>';
+
+    const textarea = content.querySelector('textarea');
+    const status = content.querySelector('.js-delight-mcp-copy-status');
+
+    const popup = new BX.PopupWindow('delight-mcp-token-popup', null, {
+      content: content,
+      titleBar: 'Новый JWT-токен',
+      closeIcon: true,
+      closeByEsc: true,
+      overlay: { backgroundColor: 'black', opacity: 30 },
+      autoHide: false,
+      width: 680,
+      buttons: [
+        new BX.PopupWindowButton({
+          text: 'Копировать',
+          className: 'popup-window-button-accept',
+          events: {
+            click: async () => {
+              try {
+                if (navigator.clipboard && window.isSecureContext) {
+                  await navigator.clipboard.writeText(tokenStr);
+                } else {
+                  textarea.focus();
+                  textarea.select();
+                  document.execCommand('copy');
+                }
+                status.textContent = 'Скопировано в буфер обмена';
+              } catch (e) {
+                status.style.color = '#c50000';
+                status.textContent = 'Не удалось скопировать. Выделите текст и нажмите Cmd/Ctrl+C.';
+              }
+            }
+          }
+        }),
+        new BX.PopupWindowButtonLink({
+          text: 'Закрыть',
+          events: {
+            click: () => {
+              popup.close();
+            }
+          }
+        })
+      ],
+      events: {
+        onPopupClose: () => {
+          popup.destroy();
+          this.reloadPage('tokens');
+        },
+        onPopupShow: () => {
+          setTimeout(() => {
+            textarea.focus();
+            textarea.select();
+          }, 50);
+        }
+      }
+    });
+
+    popup.show();
   }
 }
 
