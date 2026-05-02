@@ -154,6 +154,21 @@ class TokenService
             $header = $request->getServer()->get('REDIRECT_HTTP_AUTHORIZATION');
         }
 
+        // 4. Фолбэк на кастомный заголовок X-Authorization
+        if (!$header) {
+            $header = $request->getHeader('X-Authorization');
+        }
+        if (!$header && function_exists('apache_request_headers')) {
+            $allHeaders = apache_request_headers();
+            $authHeaderKey = array_key_exists('X-Authorization', $allHeaders)
+                ? 'X-Authorization'
+                : (array_key_exists('x-authorization', $allHeaders) ? 'x-authorization' : null);
+
+            if ($authHeaderKey) {
+                $header = $allHeaders[$authHeaderKey];
+            }
+        }
+
         if ($header && preg_match('/^Bearer\s+(.*?)$/i', $header, $matches)) {
             return $matches[1];
         }
