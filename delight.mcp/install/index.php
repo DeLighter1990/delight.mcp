@@ -61,6 +61,7 @@ class delight_mcp extends CModule
     public function InstallDB(): void
     {
         $connection = Application::getInstance()->getConnection();
+        include_once(__DIR__ . '/../lib/Traits/BulkInsertTrait.php');
         include_once(__DIR__ . '/../lib/Entity/DelightMcpTokensTable.php');
         if (!$connection->isTableExists(DelightMcpTokensTable::getTableName())) {
             DelightMcpTokensTable::getEntity()->createDbTable();
