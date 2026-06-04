@@ -62,11 +62,13 @@ class DelightMcpTokensTable extends Entity\DataManager
             ]),
 
             new Fields\DatetimeField('DATE_MODIFY', [
-                'title' => 'Дата изменения'
+                'title' => 'Дата изменения',
+                'nullable' => true,
             ]),
 
             new Fields\DatetimeField('LAST_USED', [
-                'title' => 'Последнее использование'
+                'title' => 'Последнее использование',
+                'nullable' => true,
             ]),
         ];
     }
