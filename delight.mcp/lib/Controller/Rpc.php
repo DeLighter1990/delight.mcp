@@ -5,6 +5,7 @@ namespace Delight\Mcp\Controller;
 use Bitrix\Main\ArgumentException;
 use Bitrix\Main\ArgumentNullException;
 use Bitrix\Main\ArgumentTypeException;
+use Bitrix\Main\Context;
 use Bitrix\Main\Engine\Controller;
 use Bitrix\Main\Error;
 use Bitrix\Main\ObjectPropertyException;
@@ -24,6 +25,9 @@ use Delight\Mcp\Services\LoggerService;
 
 class Rpc extends Controller
 {
+    /** @var int Время жизни SSE-подключения */
+    private const SSE_MAX_LIFETIME_SECONDS = 60 * 5;
+
     public function __construct()
     {
         parent::__construct();
@@ -50,6 +54,10 @@ class Rpc extends Controller
      */
     public function handlerAction(): ?array
     {
+        if ($this->getRequest()->getRequestMethod() === 'GET') {
+            $this->handleSse();
+        }
+
         $data = $this->getJsonRequestData();
 
         $token = TokenService::extractTokenFromHeader();
@@ -69,6 +77,11 @@ class Rpc extends Controller
 
         switch ($method) {
             case 'initialize':
+                // Mcp-Session-Id требуется для соединения с Codex
+                Context::getCurrent()->getResponse()->addHeader(
+                    'Mcp-Session-Id',
+                    $this->generateSessionId($token)
+                );
                 return [
                     'serverInfo' => [
                         'name' => 'Delight Bitrix MCP',
@@ -88,9 +101,9 @@ class Rpc extends Controller
                  * На этот запрос сервер не должен отвечать.
                  * Он служит для уведомления сервера клиентом о готовности работы.
                  * На других MCP он может быть использован для инициализации внутренних ресурсов/сервисов,
-                 * в нашем случае он не используется, но должен быть обработан без ошибок и без ответа.
+                 * в нашем случае он не используется, но должен быть обработан без ошибок и с кодом 202.
                  */
-                exit;
+                return null;
             case 'tools/list':
                 $toolsService = new ToolsService();
                 return [
@@ -104,6 +117,11 @@ class Rpc extends Controller
             case 'resources/list':
                 return [
                     'resources' => (new ResourceService())->getResourceList()
+                ];
+
+            case 'resources/templates/list':
+                return [
+                    'resourceTemplates' => [],
                 ];
 
             case 'resources/read':
@@ -172,9 +190,24 @@ class Rpc extends Controller
      */
     public function finalizeResponse(Response $response): void
     {
-        parent::finalizeResponse($response);
-
         $requestData = $this->getJsonRequestData();
+
+        /**
+         * По JSON-RPC любое сообщение без id является notification.
+         * Сервер не должен возвращать на него JSON-RPC-ответ, включая уведомления, которые появятся в будущем.
+         */
+        $isNotification = is_array($requestData)
+            && isset($requestData['method'])
+            && !array_key_exists('id', $requestData);
+
+        if ($isNotification) {
+            $response->setStatus('202 Accepted');
+            $response->setContent('');
+
+            return;
+        }
+
+        parent::finalizeResponse($response);
 
         $id = $requestData['id'] ?? null;
 
@@ -209,9 +242,75 @@ class Rpc extends Controller
         }
 
         $token = TokenService::extractTokenFromHeader();
-        if($token !== null) {
+        if ($token !== null) {
             $tokenIdentifier = (new TokenService())->getTokenIdentifier($token);
             (new LoggerService($tokenIdentifier))->log('Out', $finalResponse);
         }
+    }
+
+    /**
+     * Обработчик SSE GET-соединения для Streamable HTTP transport.
+     *
+     * Codex открывает SSE-соединение сразу после initialize.
+     * Мы не используем server-push, но соединение должно существовать —
+     * иначе handshake не завершится и транспорт закроется.
+     *
+     * @return never
+     * @throws ArgumentNullException
+     */
+    private function handleSse(): never
+    {
+        $token = TokenService::extractTokenFromHeader();
+        $sessionId = $this->getRequest()->getHeader('Mcp-Session-Id');
+
+        if (!$token || !$sessionId || !hash_equals($this->generateSessionId($token), $sessionId)) {
+            $response = Context::getCurrent()->getResponse();
+            $response->setStatus('401 Unauthorized');
+            $response->flush('');
+            exit;
+        }
+
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
+        $response = Context::getCurrent()->getResponse();
+        $response->setStatus('200 OK');
+        $response->addHeader('Content-Type', 'text/event-stream');
+        $response->addHeader('Cache-Control', 'no-cache');
+        $response->addHeader('Connection', 'keep-alive');
+        $response->addHeader('X-Accel-Buffering', 'no');
+        $response->flush('');
+
+        $request = Context::getCurrent()->getRequest();
+        $protocol = $request->isHttps() ? 'https' : 'http';
+        $host = $request->getHttpHost();
+        $postUrl = $protocol . '://' . $host . $request->getRequestUri();
+        echo "event: endpoint\n";
+        echo "data: {$postUrl}\n\n";
+        flush();
+
+        set_time_limit(self::SSE_MAX_LIFETIME_SECONDS);
+
+        while (!connection_aborted()) {
+            echo ": ping\n\n";
+            flush();
+            sleep(15);
+        }
+
+        exit;
+    }
+
+    /**
+     * Генерирует Mcp-Session-Id на основе токена.
+     * Сессия не хранится — она детерминирована: один токен = один session id.
+     * Используется только для корректной установки соединения.
+     *
+     * @param string $token
+     * @return string
+     */
+    private function generateSessionId(string $token): string
+    {
+        return hash('sha256', $token);
     }
 }

@@ -120,6 +120,22 @@
 ```
 </details>
 
+<details>
+<summary>Codex</summary>
+
+![Codex](delight.mcp/assets/img/codex.png)
+
+Файл `/.codex/config.toml`:
+```
+[mcp_servers.bitrix]
+enabled = true
+url = "https://{ВАШ_ДОМЕН}/bitrix/services/main/ajax.php?action=delight:mcp.Rpc.handler"
+
+[mcp_servers.bitrix.http_headers]
+Authorization = "Bearer {ВАШ_ТОКЕН}"
+```
+</details>
+
 ### Особенности указания команды `npx`
 
 Значение поля `command` может зависеть от операционной системы и окружения. Примеры:
